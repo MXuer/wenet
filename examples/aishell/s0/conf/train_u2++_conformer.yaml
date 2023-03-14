@@ -22,7 +22,7 @@ encoder_conf:
     use_dynamic_left_chunk: false
 
 # decoder related
-decoder: bitransformer
+decoder: biparaformer
 decoder_conf:
     attention_heads: 4
     linear_units: 2048
@@ -87,4 +87,4 @@ optim_conf:
     lr: 0.001
 scheduler: warmuplr     # pytorch v1.1.0+ required
 scheduler_conf:
-    warmup_steps: 25000
+    warmup_steps: 10000

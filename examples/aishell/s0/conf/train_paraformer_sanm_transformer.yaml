@@ -5,33 +5,40 @@ encoder_conf:
     output_size: 256    # dimension of attention
     attention_heads: 4
     linear_units: 2048  # the number of units of position-wise feed forward
-    num_blocks: 12      # the number of encoder blocks
+    num_blocks: 24      # the number of encoder blocks
     dropout_rate: 0.1
     positional_dropout_rate: 0.1
     attention_dropout_rate: 0.0
-    input_layer: conv2d # encoder architecture type
+    input_layer: conv2d6 # encoder architecture type
     normalize_before: true
-    use_dynamic_chunk: true
-    use_dynamic_left_chunk: false
+    cnn_module_kernel: 13
+    selfattention_layer_type: 'sanm'
 
 # decoder related
-decoder: bitransformer
+decoder: paraformer
 decoder_conf:
     attention_heads: 4
     linear_units: 2048
-    num_blocks: 3
-    r_num_blocks: 3
+    num_blocks: 8
     dropout_rate: 0.1
     positional_dropout_rate: 0.1
-    self_attention_dropout_rate: 0.0
-    src_attention_dropout_rate: 0.0
+    self_attention_dropout_rate: 0.1
+    src_attention_dropout_rate: 0.1
+
+preditor_paraformer: ""
+preditor_conf:
+    noise_threshold: 0.01
+
+sampler_conf:
+    sampling_ratio: 0.75
 
 # hybrid CTC/attention
 model_conf:
     ctc_weight: 0.3
     lsm_weight: 0.1     # label smoothing option
     length_normalized_loss: false
-    reverse_weight: 0.3
+    embed_weight: 0.5
+    predictor_weight: 1.0 # predicted token number/mse loss weight
 
 dataset_conf:
     filter_conf:
@@ -53,9 +60,13 @@ dataset_conf:
         num_f_mask: 2
         max_t: 50
         max_f: 10
+    spec_sub: true
+    spec_sub_conf:
+        num_t_sub: 3
+        max_t: 30
     spec_trim: false
     spec_trim_conf:
-        max_t: 70
+        max_t: 50
     shuffle: true
     shuffle_conf:
         shuffle_size: 1500
@@ -64,7 +75,7 @@ dataset_conf:
         sort_size: 500  # sort_size should be less than shuffle_size
     batch_conf:
         batch_type: 'static' # static or dynamic
-        batch_size: 26
+        batch_size: 64
 
 grad_clip: 5
 accum_grad: 1
