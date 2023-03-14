@@ -22,6 +22,7 @@ from typeguard import check_argument_types
 
 from wenet.transformer.attention import MultiHeadedAttention
 from wenet.transformer.attention import RelPositionMultiHeadedAttention
+from wenet.paraformer.attention import MultiHeadedAttentionSANM
 from wenet.transformer.convolution import ConvolutionModule
 from wenet.transformer.embedding import PositionalEncoding
 from wenet.transformer.embedding import RelPositionalEncoding
@@ -157,10 +158,12 @@ class BaseEncoder(torch.nn.Module):
             masks: torch.Tensor batch padding mask after subsample
                 (B, 1, T' ~= T/subsample_rate)
         """
-        T = xs.size(1)
-        masks = ~make_pad_mask(xs_lens, T).unsqueeze(1)  # (B, 1, T)
+        print(xs_lens)
         if self.global_cmvn is not None:
-            xs = self.global_cmvn(xs)
+            xs, xs_lens = self.global_cmvn(xs, xs_lens)
+        T = xs.size(1)
+        print(xs_lens)
+        masks = ~make_pad_mask(xs_lens, T).unsqueeze(1)  # (B, 1, T)
         xs, pos_emb, masks = self.embed(xs, masks)
         mask_pad = masks  # (B, 1, T/subsample_rate)
         chunk_masks = add_optional_chunk_mask(xs, masks,
@@ -225,7 +228,7 @@ class BaseEncoder(torch.nn.Module):
                                dtype=torch.bool)
         tmp_masks = tmp_masks.unsqueeze(1)
         if self.global_cmvn is not None:
-            xs = self.global_cmvn(xs)
+            xs, xs_lens = self.global_cmvn(xs)
         # NOTE(xcsong): Before embed, shape(xs) is (b=1, time, mel-dim)
         xs, pos_emb, _ = self.embed(xs, tmp_masks, offset)
         # NOTE(xcsong): After  embed, shape(xs) is (b=1, chunk_size, hidden-dim)
@@ -340,11 +343,13 @@ class TransformerEncoder(BaseEncoder):
         attention_dropout_rate: float = 0.0,
         input_layer: str = "conv2d",
         pos_enc_layer_type: str = "abs_pos",
+        selfattention_layer_type: str = "",
         normalize_before: bool = True,
         concat_after: bool = False,
         static_chunk_size: int = 0,
         use_dynamic_chunk: bool = False,
         global_cmvn: torch.nn.Module = None,
+        cnn_module_kernel: int = 15,
         use_dynamic_left_chunk: bool = False,
     ):
         """ Construct TransformerEncoder
@@ -352,6 +357,28 @@ class TransformerEncoder(BaseEncoder):
         See Encoder for the meaning of each parameter.
         """
         assert check_argument_types()
+        # self-attention module definition
+        if selfattention_layer_type == "sanm":
+            encoder_selfattn_layer = MultiHeadedAttentionSANM
+        elif pos_enc_layer_type == "rel_pos":
+            encoder_selfattn_layer = RelPositionMultiHeadedAttention
+        else:
+            encoder_selfattn_layer = MultiHeadedAttention
+        
+        if selfattention_layer_type != "sanm":
+            encoder_selfattn_layer_args = (
+                attention_heads,
+                output_size,
+                attention_dropout_rate,
+            )
+        else:
+            encoder_selfattn_layer_args = (
+                attention_heads,
+                output_size,
+                cnn_module_kernel,
+                attention_dropout_rate,
+            )
+            
         super().__init__(input_size, output_size, attention_heads,
                          linear_units, num_blocks, dropout_rate,
                          positional_dropout_rate, attention_dropout_rate,
@@ -361,8 +388,7 @@ class TransformerEncoder(BaseEncoder):
         self.encoders = torch.nn.ModuleList([
             TransformerEncoderLayer(
                 output_size,
-                MultiHeadedAttention(attention_heads, output_size,
-                                     attention_dropout_rate),
+                encoder_selfattn_layer(*encoder_selfattn_layer_args),
                 PositionwiseFeedForward(output_size, linear_units,
                                         dropout_rate), dropout_rate,
                 normalize_before, concat_after) for _ in range(num_blocks)
@@ -424,15 +450,27 @@ class ConformerEncoder(BaseEncoder):
         activation = get_activation(activation_type)
 
         # self-attention module definition
-        if pos_enc_layer_type != "rel_pos":
-            encoder_selfattn_layer = MultiHeadedAttention
-        else:
+        if selfattention_layer_type == "sanm":
+            encoder_selfattn_layer = MultiHeadedAttentionSANM
+        elif pos_enc_layer_type == "rel_pos":
             encoder_selfattn_layer = RelPositionMultiHeadedAttention
-        encoder_selfattn_layer_args = (
-            attention_heads,
-            output_size,
-            attention_dropout_rate,
-        )
+        else:
+            encoder_selfattn_layer = MultiHeadedAttention
+        
+        if selfattention_layer_type != "sanm":
+            encoder_selfattn_layer_args = (
+                attention_heads,
+                output_size,
+                attention_dropout_rate,
+            )
+        else:
+            encoder_selfattn_layer_args = (
+                attention_heads,
+                output_size,
+                cnn_module_kernel,
+                attention_dropout_rate,
+            )
+            
         # feed-forward module definition
         positionwise_layer = PositionwiseFeedForward
         positionwise_layer_args = (

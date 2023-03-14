@@ -25,14 +25,21 @@ from wenet.transformer.encoder import ConformerEncoder, TransformerEncoder
 from wenet.squeezeformer.encoder import SqueezeformerEncoder
 from wenet.efficient_conformer.encoder import EfficientConformerEncoder
 from wenet.utils.cmvn import load_cmvn
-
+from wenet.paraformer.predictor import Predictor
+from wenet.paraformer.sampler import Sampler
+from wenet.paraformer.decoder import ParaformerDecoder, BiParaformerDecoder
+from wenet.paraformer.decoder import ParaformerSANMDecoder
+from wenet.paraformer.asr_model import ParaModel
 
 def init_model(configs):
     if configs['cmvn_file'] is not None:
         mean, istd = load_cmvn(configs['cmvn_file'], configs['is_json_cmvn'])
+        cmvn_conf = configs.get('cmvn_conf', {})
+        print(cmvn_conf)
         global_cmvn = GlobalCMVN(
             torch.from_numpy(mean).float(),
-            torch.from_numpy(istd).float())
+            torch.from_numpy(istd).float(),
+            **cmvn_conf)
     else:
         global_cmvn = None
 
@@ -64,6 +71,14 @@ def init_model(configs):
     if decoder_type == 'transformer':
         decoder = TransformerDecoder(vocab_size, encoder.output_size(),
                                      **configs['decoder_conf'])
+    elif decoder_type ==  "paraformer":
+        decoder = ParaformerSANMDecoder(vocab_size, encoder.output_size(),
+                                     **configs['decoder_conf'])
+    elif decoder_type ==  "biparaformer":
+        assert 0.0 < configs['model_conf']['reverse_weight'] < 1.0
+        assert configs['decoder_conf']['r_num_blocks'] > 0
+        decoder = BiParaformerDecoder(vocab_size, encoder.output_size(),
+                                       **configs['decoder_conf'])
     else:
         assert 0.0 < configs['model_conf']['reverse_weight'] < 1.0
         assert configs['decoder_conf']['r_num_blocks'] > 0
@@ -101,6 +116,20 @@ def init_model(configs):
                            joint=joint,
                            ctc=ctc,
                            **configs['model_conf'])
+    elif "preditor_paraformer" in configs:
+        predictor = Predictor(input_size=configs['encoder_conf']['output_size'],
+                              **configs['preditor_conf'])
+        sampler = Sampler(embed_dim=configs['encoder_conf']['output_size'],
+                          vocab_size=vocab_size,
+                          **configs['sampler_conf'])
+        model = ParaModel(vocab_size=vocab_size,
+                         encoder=encoder,
+                         decoder=decoder,
+                         predictor=predictor,
+                         sampler=sampler,
+                         ctc=ctc,
+                         **configs['model_conf'])
+        
     else:
         model = ASRModel(vocab_size=vocab_size,
                          encoder=encoder,

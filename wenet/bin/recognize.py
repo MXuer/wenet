@@ -19,7 +19,7 @@ import copy
 import logging
 import os
 import sys
-
+import time
 import torch
 import yaml
 from torch.utils.data import DataLoader
@@ -218,6 +218,7 @@ def main():
     model = model.to(device)
 
     model.eval()
+    start_time = time.time()
     with torch.no_grad(), open(args.result_file, 'w') as fout:
         for batch_idx, batch in enumerate(test_data_loader):
             keys, feats, target, feats_lengths, target_lengths = batch
@@ -233,7 +234,7 @@ def main():
                     decoding_chunk_size=args.decoding_chunk_size,
                     num_decoding_left_chunks=args.num_decoding_left_chunks,
                     simulate_streaming=args.simulate_streaming)
-                hyps = [hyp.tolist() for hyp in hyps]
+                hyps = [hyp for hyp in hyps]
             elif args.mode == 'ctc_greedy_search':
                 hyps, _ = model.ctc_greedy_search(
                     feats,
@@ -351,7 +352,8 @@ def main():
                     content.append(char_dict[w])
                 logging.info('{} {}'.format(key, args.connect_symbol.join(content)))
                 fout.write('{} {}\n'.format(key, args.connect_symbol.join(content)))
-
-
+    end_time = time.time()
+    logging.info(f"Time Cost: {(end_time - start_time) / 36108.9}.")
+        
 if __name__ == '__main__':
     main()

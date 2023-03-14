@@ -18,6 +18,9 @@ import argparse
 import copy
 import logging
 import os
+import sys
+
+import numpy as np
 
 import torch
 import torch.distributed as dist
@@ -103,24 +106,58 @@ def get_args():
                         default=None,
                         type=str,
                         help='bpe model for english part')
-    parser.add_argument('--override_config',
-                        action='append',
-                        default=[],
-                        help="override yaml config")
-    parser.add_argument("--enc_init",
-                        default=None,
+    parser.add_argument('--ms_model_dir',
+                        default="",
                         type=str,
-                        help="Pre-trained model to initialize encoder")
-    parser.add_argument("--enc_init_mods",
-                        default="encoder.",
-                        type=lambda s: [str(mod) for mod in s.split(",") if s != ""],
-                        help="List of encoder modules \
-                        to initialize ,separated by a comma")
+                        help='ali modelscope pretrained model directory')
 
 
     args = parser.parse_args()
     return args
 
+
+def load_cmvn(cmvn_file):
+    with open(cmvn_file, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    means_list = []
+    vars_list = []
+    for i in range(len(lines)):
+        line_item = lines[i].split()
+        if line_item[0] == '<AddShift>':
+            line_item = lines[i + 1].split()
+            if line_item[0] == '<LearnRateCoef>':
+                add_shift_line = line_item[3:(len(line_item) - 1)]
+                means_list = list(add_shift_line)
+                continue
+        elif line_item[0] == '<Rescale>':
+            line_item = lines[i + 1].split()
+            if line_item[0] == '<LearnRateCoef>':
+                rescale_line = line_item[3:(len(line_item) - 1)]
+                vars_list = list(rescale_line)
+                continue
+    means = np.array(means_list).astype(np.float)
+    vars = np.array(vars_list).astype(np.float)
+    cmvn = np.array([means, vars])
+    cmvn = torch.as_tensor(cmvn) 
+    return cmvn 
+
+
+def apply_cmvn(inputs, cmvn_file):  # noqa
+    """
+    Apply CMVN with mvn data
+    """
+
+    device = inputs.device
+    dtype = inputs.dtype
+    frame, dim = inputs.shape
+
+    cmvn = load_cmvn(cmvn_file)
+    means = np.tile(cmvn[0:1, :dim], (frame, 1))
+    vars = np.tile(cmvn[1:2, :dim], (frame, 1))
+    inputs += torch.from_numpy(means).type(dtype).to(device)
+    inputs *= torch.from_numpy(vars).type(dtype).to(device)
+
+    return inputs.type(torch.float32)
 
 def main():
     args = get_args()
@@ -128,12 +165,11 @@ def main():
                         format='%(asctime)s %(levelname)s %(message)s')
     os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
 
+
     # Set random seed
     torch.manual_seed(777)
     with open(args.config, 'r') as fin:
         configs = yaml.load(fin, Loader=yaml.FullLoader)
-    if len(args.override_config) > 0:
-        configs = override_config(configs, args.override_config)
 
     distributed = args.world_size > 1
     if distributed:
@@ -154,27 +190,7 @@ def main():
     cv_conf['shuffle'] = False
     non_lang_syms = read_non_lang_symbols(args.non_lang_syms)
 
-    train_dataset = Dataset(args.data_type, args.train_data, symbol_table,
-                            train_conf, args.bpe_model, non_lang_syms, True)
-    cv_dataset = Dataset(args.data_type,
-                         args.cv_data,
-                         symbol_table,
-                         cv_conf,
-                         args.bpe_model,
-                         non_lang_syms,
-                         partition=False)
-
-    train_data_loader = DataLoader(train_dataset,
-                                   batch_size=None,
-                                   pin_memory=args.pin_memory,
-                                   num_workers=args.num_workers,
-                                   prefetch_factor=args.prefetch)
-    cv_data_loader = DataLoader(cv_dataset,
-                                batch_size=None,
-                                pin_memory=args.pin_memory,
-                                num_workers=args.num_workers,
-                                prefetch_factor=args.prefetch)
-
+ 
     if 'fbank_conf' in configs['dataset_conf']:
         input_dim = configs['dataset_conf']['fbank_conf']['num_mel_bins']
     else:
@@ -197,120 +213,7 @@ def main():
     print(model)
     num_params = sum(p.numel() for p in model.parameters())
     print('the number of model params: {:,d}'.format(num_params))
-
-    # !!!IMPORTANT!!!
-    # Try to export the model by script, if fails, we should refine
-    # the code to satisfy the script export requirements
-    if args.rank == 0:
-        script_model = torch.jit.script(model)
-        script_model.save(os.path.join(args.model_dir, 'init.zip'))
-    executor = Executor()
-    # If specify checkpoint, load some info from checkpoint
-    if args.checkpoint is not None:
-        infos = load_checkpoint(model, args.checkpoint)
-    elif args.enc_init is not None:
-        logging.info('load pretrained encoders: {}'.format(args.enc_init))
-        infos = load_trained_modules(model, args)
-    else:
-        infos = {}
-    start_epoch = infos.get('epoch', -1) + 1
-    cv_loss = infos.get('cv_loss', 0.0)
-    step = infos.get('step', -1)
-
-    num_epochs = configs.get('max_epoch', 100)
-    model_dir = args.model_dir
-    writer = None
-    if args.rank == 0:
-        os.makedirs(model_dir, exist_ok=True)
-        exp_id = os.path.basename(model_dir)
-        writer = SummaryWriter(os.path.join(args.tensorboard_dir, exp_id))
-
-    if distributed:
-        assert (torch.cuda.is_available())
-        # cuda model is required for nn.parallel.DistributedDataParallel
-        model.cuda()
-        model = torch.nn.parallel.DistributedDataParallel(
-            model, find_unused_parameters=True)
-        device = torch.device("cuda")
-        if args.fp16_grad_sync:
-            from torch.distributed.algorithms.ddp_comm_hooks import (
-                default as comm_hooks,
-            )
-            model.register_comm_hook(
-                state=None, hook=comm_hooks.fp16_compress_hook
-            )
-    else:
-        use_cuda = args.gpu >= 0 and torch.cuda.is_available()
-        device = torch.device('cuda' if use_cuda else 'cpu')
-        model = model.to(device)
-
-    if configs['optim'] == 'adam':
-        optimizer = optim.Adam(model.parameters(), **configs['optim_conf'])
-    elif configs['optim'] == 'adamw':
-        optimizer = optim.AdamW(model.parameters(), **configs['optim_conf'])
-    else:
-        raise ValueError("unknown optimizer: " + configs['optim'])
-    if configs['scheduler'] == 'warmuplr':
-        scheduler = WarmupLR(optimizer, **configs['scheduler_conf'])
-    elif configs['scheduler'] == 'NoamHoldAnnealing':
-        scheduler = NoamHoldAnnealing(optimizer, **configs['scheduler_conf'])
-    else:
-        raise ValueError("unknown scheduler: " + configs['scheduler'])
-
-    final_epoch = None
-    configs['rank'] = args.rank
-    configs['is_distributed'] = distributed
-    configs['use_amp'] = args.use_amp
-    if start_epoch == 0 and args.rank == 0:
-        save_model_path = os.path.join(model_dir, 'init.pt')
-        save_checkpoint(model, save_model_path)
-
-    # Start training loop
-    executor.step = step
-    scheduler.set_step(step)
-    # used for pytorch amp mixed precision training
-    scaler = None
-    if args.use_amp:
-        scaler = torch.cuda.amp.GradScaler()
-
-    for epoch in range(start_epoch, num_epochs):
-        train_dataset.set_epoch(epoch)
-        configs['epoch'] = epoch
-        lr = optimizer.param_groups[0]['lr']
-        logging.info('Epoch {} TRAIN info lr {}'.format(epoch, lr))
-        executor.train(model, optimizer, scheduler, train_data_loader, device,
-                       writer, configs, scaler)
-        total_loss, num_seen_utts, loss_dict = executor.cv(model, cv_data_loader, device,
-                                                configs)
-        cv_loss = total_loss / num_seen_utts
-
-        logging.info('Epoch {} CV info cv_loss {}'.format(epoch, cv_loss))
-        if args.rank == 0:
-            save_model_path = os.path.join(model_dir, '{}.pt'.format(epoch))
-            save_checkpoint(
-                model, save_model_path, {
-                    'epoch': epoch,
-                    'lr': lr,
-                    'cv_loss': cv_loss,
-                    'step': executor.step
-                })
-            writer.add_scalar('epoch/cv_loss', cv_loss, epoch)
-            writer.add_scalar('epoch/lr', lr, epoch)
-            for name, value in loss_dict.items():
-                if name == "loss":
-                    continue
-                if "loss" not in name:
-                    continue
-                if value is None:
-                    continue
-                writer.add_scalar(f"epoch/{name}", value/num_seen_utts, epoch)
-        final_epoch = epoch
-
-    if final_epoch is not None and args.rank == 0:
-        final_model_path = os.path.join(model_dir, 'final.pt')
-        os.remove(final_model_path) if os.path.exists(final_model_path) else None
-        os.symlink('{}.pt'.format(final_epoch), final_model_path)
-        writer.close()
+    infos = load_checkpoint(model, args.checkpoint)
 
 
 if __name__ == '__main__':
