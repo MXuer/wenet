@@ -52,8 +52,16 @@ class Predictor(nn.Module):
         assert check_argument_types()
         super().__init__()
         activation = get_activation(activation_type)
+        
+        #-> START
+        # # Original
+        # self.convolution_layer = ConvPredictor(input_size)
+        
+        # Wenet Internal
         convolution_layer_args = (input_size, cnn_module_kernel, activation, cnn_module_norm, casual)
-        self.convolution_layer = ConvPredictor(input_size)
+        self.convolution_layer = ConvolutionModule(*convolution_layer_args)
+        #-> END
+        
         self.linear_layer = nn.Linear(input_size, 1)
         
         self.smooth_factor = smooth_factor
@@ -85,7 +93,7 @@ class Predictor(nn.Module):
         # (B, 1, T)
         masks = ~make_pad_mask(x_lens, T).unsqueeze(1)
         # (B, T, F)
-        hidden = self.convolution_layer(x)
+        hidden, *_ = self.convolution_layer(x)
         # (B, T, 1)
         hidden = self.linear_layer(hidden)
         alphas = torch.sigmoid(hidden)

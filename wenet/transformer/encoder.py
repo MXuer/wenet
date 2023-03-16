@@ -158,11 +158,9 @@ class BaseEncoder(torch.nn.Module):
             masks: torch.Tensor batch padding mask after subsample
                 (B, 1, T' ~= T/subsample_rate)
         """
-        print(xs_lens)
         if self.global_cmvn is not None:
             xs, xs_lens = self.global_cmvn(xs, xs_lens)
         T = xs.size(1)
-        print(xs_lens)
         masks = ~make_pad_mask(xs_lens, T).unsqueeze(1)  # (B, 1, T)
         xs, pos_emb, masks = self.embed(xs, masks)
         mask_pad = masks  # (B, 1, T/subsample_rate)

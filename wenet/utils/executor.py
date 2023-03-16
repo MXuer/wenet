@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import logging
 from contextlib import nullcontext
-from collections import defaultdict
+from wenet.utils.checkpoint import save_checkpoint, remove_checkpoint
+
 # if your python version < 3.7 use the below one
 # from contextlib import suppress as nullcontext
 import torch
@@ -27,7 +29,7 @@ class Executor:
         self.step = 0
 
     def train(self, model, optimizer, scheduler, data_loader, device, writer,
-              args, scaler):
+              args, scaler, epoch, model_dir, keep_last_k, save_every_n=-1):
         ''' Train one epoch
         '''
         model.train()
@@ -87,15 +89,6 @@ class Executor:
                 if batch_idx % accum_grad == 0:
                     if rank == 0 and writer is not None:
                         writer.add_scalar('train_loss', loss, self.step)
-                        # add another information to tensorboard
-                        for name, value in loss_dict.items():
-                            if name == "loss":
-                                continue
-                            if "loss" not in name:
-                                continue
-                            if value is None:
-                                continue
-                            writer.add_scalar(f"train/{name}", value, self.step)
                     # Use mixed precision training
                     if use_amp:
                         scaler.unscale_(optimizer)
@@ -126,6 +119,19 @@ class Executor:
                             log_str += '{} {:.6f} '.format(name, value.item())
                     log_str += 'lr {:.8f} rank {}'.format(lr, rank)
                     logging.debug(log_str)
+                    
+                if rank == 0 and save_every_n > 0:
+                    if batch_idx % save_every_n == 0 and batch_idx != 0:
+                        save_model_path = os.path.join(model_dir, 'checkpoint-{:05d}-{:09d}.pt'.format(epoch, batch_idx))
+                        save_checkpoint(
+                            model, save_model_path, {
+                                'epoch': epoch,
+                                'lr': lr,
+                                'cv_loss': 0.0,
+                                'step': self.step
+                            })
+                        logging.debug("Save checkpoint with {} to {}".format(batch_idx, save_model_path))
+                        remove_checkpoint(model_dir, keep_last_k)
 
     def cv(self, model, data_loader, device, args):
         ''' Cross validation on
@@ -137,7 +143,6 @@ class Executor:
         # in order to avoid division by 0
         num_seen_utts = 1
         total_loss = 0.0
-        loss_dict_total = defaultdict(lambda : 0.)
         with torch.no_grad():
             for batch_idx, batch in enumerate(data_loader):
                 key, feats, target, feats_lengths, target_lengths = batch
@@ -153,8 +158,6 @@ class Executor:
                 if torch.isfinite(loss):
                     num_seen_utts += num_utts
                     total_loss += loss.item() * num_utts
-                    for name, value in loss_dict.items():
-                        loss_dict_total[name] += value * num_utts
                 if batch_idx % log_interval == 0:
                     log_str = 'CV Batch {}/{} loss {:.6f} '.format(
                         epoch, batch_idx, loss.item())
@@ -165,4 +168,4 @@ class Executor:
                                                             num_seen_utts)
                     log_str += ' rank {}'.format(rank)
                     logging.debug(log_str)
-        return total_loss, num_seen_utts, loss_dict_total
+        return total_loss, num_seen_utts

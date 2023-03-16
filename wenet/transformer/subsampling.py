@@ -129,7 +129,6 @@ class Conv2dSubsampling4(BaseSubsampling):
         x = x.unsqueeze(1)  # (b, c=1, t, f)
         x = self.conv(x)
         b, c, t, f = x.size()
-        print(x.size())
         x = self.out(x.transpose(1, 2).contiguous().view(b, t, c * f))
         x, pos_emb = self.pos_enc(x, offset)
         return x, pos_emb, x_mask[:, :, 2::2][:, :, 2::2]

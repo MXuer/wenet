@@ -28,7 +28,7 @@ from torch.utils.data import DataLoader
 
 from wenet.dataset.dataset import Dataset
 from wenet.utils.checkpoint import (load_checkpoint, save_checkpoint,
-                                    load_trained_modules)
+                                    load_trained_modules, remove_checkpoint)
 from wenet.utils.executor import Executor
 from wenet.utils.file_utils import read_symbol_table, read_non_lang_symbols
 from wenet.utils.scheduler import WarmupLR, NoamHoldAnnealing
@@ -116,7 +116,14 @@ def get_args():
                         type=lambda s: [str(mod) for mod in s.split(",") if s != ""],
                         help="List of encoder modules \
                         to initialize ,separated by a comma")
-
+    parser.add_argument("--save_every_n",
+                        default=-1,
+                        type=int,
+                        help="save checkpoint after steps")
+    parser.add_argument("--keep_last_k",
+                        default=-1,
+                        type=int,
+                        help="keep last k number of checkpoints")
 
     args = parser.parse_args()
     return args
@@ -207,6 +214,7 @@ def main():
     executor = Executor()
     # If specify checkpoint, load some info from checkpoint
     if args.checkpoint is not None:
+        print(f"load checkpoint from {args.checkpoint}")
         infos = load_checkpoint(model, args.checkpoint)
     elif args.enc_init is not None:
         logging.info('load pretrained encoders: {}'.format(args.enc_init))
@@ -279,8 +287,9 @@ def main():
         lr = optimizer.param_groups[0]['lr']
         logging.info('Epoch {} TRAIN info lr {}'.format(epoch, lr))
         executor.train(model, optimizer, scheduler, train_data_loader, device,
-                       writer, configs, scaler)
-        total_loss, num_seen_utts, loss_dict = executor.cv(model, cv_data_loader, device,
+                       writer, configs, scaler, epoch, model_dir, args.keep_last_k,
+                       args.save_every_n)
+        total_loss, num_seen_utts = executor.cv(model, cv_data_loader, device,
                                                 configs)
         cv_loss = total_loss / num_seen_utts
 
@@ -296,14 +305,6 @@ def main():
                 })
             writer.add_scalar('epoch/cv_loss', cv_loss, epoch)
             writer.add_scalar('epoch/lr', lr, epoch)
-            for name, value in loss_dict.items():
-                if name == "loss":
-                    continue
-                if "loss" not in name:
-                    continue
-                if value is None:
-                    continue
-                writer.add_scalar(f"epoch/{name}", value/num_seen_utts, epoch)
         final_epoch = epoch
 
     if final_epoch is not None and args.rank == 0:

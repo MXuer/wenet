@@ -21,16 +21,41 @@ import torch
 from collections import OrderedDict
 
 import datetime
+from glob import glob
+
+
 
 
 def load_checkpoint(model: torch.nn.Module, path: str) -> dict:
-    if torch.cuda.is_available():
-        logging.info('Checkpoint: loading from checkpoint %s for GPU' % path)
-        checkpoint = torch.load(path)
-    else:
-        logging.info('Checkpoint: loading from checkpoint %s for CPU' % path)
-        checkpoint = torch.load(path, map_location='cpu')
-    model.load_state_dict(checkpoint, strict=False)
+    # if torch.cuda.is_available():
+    #     logging.info('Checkpoint: loading from checkpoint %s for GPU' % path)
+    #     checkpoint = torch.load(path)
+    # else:
+    #     logging.info('Checkpoint: loading from checkpoint %s for CPU' % path)
+    checkpoint = torch.load(path, map_location='cpu')
+    now_state_dict = model.state_dict()
+    load_state_dict = {}
+        
+    for name, params in now_state_dict.items():
+        if name in checkpoint.keys():
+            print(f"load {name} from pretrained checkpoint.")
+            pre_params = checkpoint[name]
+            if params.size() == pre_params.size():
+                load_state_dict[name] = pre_params
+            else:
+                load_state_dict[name] = params
+        else:
+            load_state_dict[name] = params
+    model.load_state_dict(load_state_dict)
+    
+    # model.load_state_dict(checkpoint)
+    # for ii, p in enumerate(model.encoder.encoders):
+    #     if ii <= 6:
+    #         for psub in p.parameters():
+    #             psub.requires_grad = False
+    # for ii, p in enumerate(model.encoder.parameters()):
+    #     print(ii)
+    #     p.requires_grad = False
     info_path = re.sub('.pt$', '.yaml', path)
     configs = {}
     if os.path.exists(info_path):
@@ -104,3 +129,17 @@ def load_trained_modules(model: torch.nn.Module, args: None):
     model.load_state_dict(main_state_dict)
     configs = {}
     return configs
+
+def remove_checkpoint(exp_dir: str, topk: int):
+    if topk <= 0:
+        return
+    checkpoints = glob(os.path.join(exp_dir, "checkpoint-*.pt"))
+    checkpoints = sorted(checkpoints, reverse=True)
+    if len(checkpoints) < topk:
+        return
+    
+    to_remove = checkpoints[topk:]
+    for c in to_remove:
+        os.remove(c)
+        os.remove(c[:-3] + ".yaml")
+    

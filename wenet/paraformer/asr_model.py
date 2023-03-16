@@ -186,20 +186,20 @@ class ParaModel(torch.nn.Module):
         loss_pred = self.criterion_token_nums(target_token_num, predicted_token_nums)
         # 1. Forward decoder
         with torch.no_grad():
-            decoder_out, r_decoder_out, _ = self.decoder(encoder_out, encoder_mask,
+            decoder_out_1st, r_decoder_out_1st, _ = self.decoder(encoder_out, encoder_mask,
                                                         fired_frames, ys_in_lens,
                                                         r_fired_frames,
                                                         self.reverse_weight)
-            loss_att_1st = self.criterion_att(decoder_out, ys_out_pad)
+            loss_att_1st = self.criterion_att(decoder_out_1st, ys_out_pad)
             r_loss_att_1st = torch.tensor(0.0)
             if self.reverse_weight > 0.0:
-                r_loss_att_1st = self.criterion_att(r_decoder_out, r_ys_out_pad)
+                r_loss_att_1st = self.criterion_att(r_decoder_out_1st, r_ys_out_pad)
             loss_att_1st = loss_att_1st * (
                 1 - self.reverse_weight) + r_loss_att_1st * self.reverse_weight
-        semantic_embeds, target_embed, pred_acoustic_embeds, tgt_mask, sampler_info = self.sampler(decoder_out, ys_out_pad, ys_in_lens, fired_frames, self.ignore_id)
+        semantic_embeds, target_embed, pred_acoustic_embeds, tgt_mask, sampler_info = self.sampler(decoder_out_1st, ys_out_pad, ys_in_lens, fired_frames, self.ignore_id)
         r_semantic_embeds, r_target_embed, r_pred_acoustic_embeds = torch.tensor([]), torch.tensor([]), torch.tensor([])
         if self.reverse_weight > 0:
-            r_semantic_embeds, r_target_embed, r_pred_acoustic_embeds, tgt_mask, sampler_info = self.sampler(r_decoder_out, r_ys_out_pad, ys_in_lens, r_fired_frames, self.ignore_id)
+            r_semantic_embeds, r_target_embed, r_pred_acoustic_embeds, tgt_mask, sampler_info = self.sampler(r_decoder_out_1st, r_ys_out_pad, ys_in_lens, r_fired_frames, self.ignore_id)
         # 2nd decoder
         decoder_out, r_decoder_out, _ = self.decoder(encoder_out, encoder_mask,
                                                     semantic_embeds, ys_in_lens,
