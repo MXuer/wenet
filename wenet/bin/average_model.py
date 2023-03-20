@@ -73,7 +73,8 @@ def main():
             for epoch in sorted_val_scores[:args.num, 0]
         ]
     else:
-        path_list = glob.glob('{}/[0-9]*.pt'.format(args.src_path))
+        path_list = glob.glob('{}/*.pt'.format(args.src_path))
+        path_list = [path for path in path_list if "avg" not in path]
         path_list = sorted(path_list, key=os.path.getmtime)
         path_list = path_list[-args.num:]
     print(path_list)
@@ -95,6 +96,10 @@ def main():
             avg[k] = torch.true_divide(avg[k], num)
     print('Saving to {}'.format(args.dst_model))
     torch.save(avg, args.dst_model)
+    avg_models_log = args.dst_model[:-3] + ".log"
+    with open(avg_models_log, 'w', encoding='utf-8') as f:
+        for path in path_list:
+            f.write(f"{path}\n")
 
 
 if __name__ == '__main__':
