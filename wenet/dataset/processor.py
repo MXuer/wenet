@@ -25,6 +25,8 @@ import torchaudio
 import torchaudio.compliance.kaldi as kaldi
 from torch.nn.utils.rnn import pad_sequence
 
+from wenet.utils.bbpe import byte_encode, tokenize_by_CJK_char
+
 AUDIO_FORMAT_SETS = set(['flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'wma'])
 
 
@@ -319,7 +321,7 @@ def compute_mfcc(data,
         yield dict(key=sample['key'], label=sample['label'], feat=mat)
 
 
-def __tokenize_by_bpe_model(sp, txt):
+def __tokenize_by_bpe_model(sp, txt, bbpe=False):
     tokens = []
     # CJK(China Japan Korea) unicode range is [U+4E00, U+9FFF], ref:
     # https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
@@ -331,14 +333,17 @@ def __tokenize_by_bpe_model(sp, txt):
     mix_chars = [w for w in chars if len(w.strip()) > 0]
     for ch_or_w in mix_chars:
         # ch_or_w is a single CJK charater(i.e., "你"), do nothing.
-        if pattern.fullmatch(ch_or_w) is not None:
+        if pattern.fullmatch(ch_or_w) is not None and (not bbpe):
             tokens.append(ch_or_w)
         # ch_or_w contains non-CJK charaters(i.e., " IT'S OKAY "),
         # encode ch_or_w using bpe_model.
+        elif bbpe:
+            ch_or_w = byte_encode(tokenize_by_CJK_char(ch_or_w))
+            for p in sp.encode_as_pieces(ch_or_w):
+                tokens.append(p)
         else:
             for p in sp.encode_as_pieces(ch_or_w):
                 tokens.append(p)
-
     return tokens
 
 
@@ -346,7 +351,8 @@ def tokenize(data,
              symbol_table,
              bpe_model=None,
              non_lang_syms=None,
-             split_with_space=False):
+             split_with_space=False,
+             bbpe=False):
     """ Decode text to chars or BPE
         Inplace operation
 
@@ -385,7 +391,7 @@ def tokenize(data,
                 tokens.append(part)
             else:
                 if bpe_model is not None:
-                    tokens.extend(__tokenize_by_bpe_model(sp, part))
+                    tokens.extend(__tokenize_by_bpe_model(sp, part, bbpe))
                 else:
                     if split_with_space:
                         part = part.split(" ")

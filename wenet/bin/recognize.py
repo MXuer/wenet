@@ -30,6 +30,7 @@ from wenet.utils.checkpoint import load_checkpoint
 from wenet.utils.file_utils import read_symbol_table, read_non_lang_symbols
 from wenet.utils.config import override_config
 from wenet.utils.init_model import init_model
+from wenet.utils.bbpe import smart_byte_decode
 
 
 def get_args():
@@ -152,6 +153,10 @@ def get_args():
                         type=float,
                         default=0.0,
                         help='lm scale for hlg attention rescore decode')
+    parser.add_argument('--bbpe',
+                        action='store_true',
+                        default=False,
+                        help='whether the model is bbpe or not')
 
     args = parser.parse_args()
     print(args)
@@ -375,10 +380,11 @@ def main():
                     if w == eos:
                         break
                     content.append(char_dict[w])
-                logging.info('{} {}'.format(key, args.connect_symbol
-                                            .join(content)))
-                fout.write('{} {}\n'.format(key, args.connect_symbol
-                                            .join(content)))
+                text = args.connect_symbol.join(content)
+                if args.bbpe:
+                    text = smart_byte_decode(text)
+                logging.info('{} {}'.format(key, text))
+                fout.write('{} {}\n'.format(key, text))
 
 
 if __name__ == '__main__':

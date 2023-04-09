@@ -120,6 +120,10 @@ def get_args():
                         default='',
                         required=False,
                         help='LF-MMI dir')
+    parser.add_argument('--bbpe',
+                        action='store_true',
+                        default=False,
+                        help='whether the model is bbpe or not')
 
     args = parser.parse_args()
     return args
@@ -158,14 +162,15 @@ def main():
     non_lang_syms = read_non_lang_symbols(args.non_lang_syms)
 
     train_dataset = Dataset(args.data_type, args.train_data, symbol_table,
-                            train_conf, args.bpe_model, non_lang_syms, True)
+                            train_conf, args.bpe_model, non_lang_syms, True, args.bbpe)
     cv_dataset = Dataset(args.data_type,
                          args.cv_data,
                          symbol_table,
                          cv_conf,
                          args.bpe_model,
                          non_lang_syms,
-                         partition=False)
+                         partition=False,
+                         bbpe=args.bbpe)
 
     train_data_loader = DataLoader(train_dataset,
                                    batch_size=None,
