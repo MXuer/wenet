@@ -11,7 +11,7 @@ export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"
 # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html
 # export NCCL_SOCKET_IFNAME=ens4f1
 export NCCL_DEBUG=INFO
-stage=0 # start from 0 if you need to start from data preparation
+stage=5 # start from 0 if you need to start from data preparation
 stop_stage=5
 
 # The num of machines(nodes) for multi-machine training, 1 is for one machine.
@@ -24,7 +24,7 @@ num_nodes=1
 node_rank=0
 # The aishell dataset location, please change this to your own path
 # make sure of using absolute path. DO-NOT-USE relatvie path!
-data=/export/data/asr-data/OpenSLR/33/
+data=/data/duhu/corpus/zh-cn/aishell
 data_url=www.openslr.org/resources/33
 
 nj=16
@@ -36,6 +36,9 @@ dict=data/dict/lang_char.txt
 data_type=raw
 num_utts_per_shard=1000
 
+token_model_type=bpe
+nbbpe=500
+
 train_set=train
 # Optional train_config
 # 1. conf/train_transformer.yaml: Standard transformer
@@ -44,16 +47,17 @@ train_set=train
 # 4. conf/train_unified_transformer.yaml: Unified dynamic chunk transformer
 # 5. conf/train_u2++_conformer.yaml: U2++ conformer
 # 6. conf/train_u2++_transformer.yaml: U2++ transformer
-train_config=conf/train_conformer.yaml
+train_config=conf/train_u2++_conformer.yaml
 cmvn=true
-dir=exp/conformer
+dir=exp/conformer_u2pp
 checkpoint=
 
 # use average_checkpoint will get better result
 average_checkpoint=true
 decode_checkpoint=$dir/final.pt
-average_num=30
+average_num=3
 decode_modes="ctc_greedy_search ctc_prefix_beam_search attention attention_rescoring"
+decode_modes="attention_rescoring"
 
 . tools/parse_options.sh || exit 1;
 
@@ -90,9 +94,19 @@ if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
   mkdir -p $(dirname $dict)
   echo "<blank> 0" > ${dict}  # 0 is for "blank" in CTC
   echo "<unk> 1"  >> ${dict}  # <unk> must be 1
-  tools/text2token.py -s 1 -n 1 data/train/text | cut -f 2- -d" " \
-    | tr " " "\n" | sort | uniq | grep -a -v -e '^\s*$' | \
-    awk '{print $0 " " NR+1}' >> ${dict}
+  if [ ! -z $token_model_type ]; then
+    python tools/train_bbpe.py --lang-dir data/dict \
+                        --transcript data/train/text \
+                        --vocab-size $nbbpe \
+                        --model-type $token_model_type || exit 1;
+    echo "data/dict/${token_model_type}_${nbbpe}.vocab"
+    cat data/dict/${token_model_type}_${nbbpe}.vocab | grep -v "unk" \
+    | tr ' ' '\n' | sort | uniq | awk -F"\t" '{print $1 " " NR+1}' >> ${dict}
+  else
+    tools/text2token.py -s 1 -n 1 data/train/text | cut -f 2- -d" " \
+      | tr " " "\n" | sort | uniq | grep -a -v -e '^\s*$' | \
+      awk '{print $0 " " NR+1}' >> ${dict}
+  fi
   num_token=$(cat $dict | wc -l)
   echo "<sos/eos> $num_token" >> $dict
 fi
@@ -109,6 +123,12 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
         data/$x/data.list
     fi
   done
+fi
+
+if [ ! -z $token_model_type ]; then
+  bpe_model=data/dict/bbpe.model
+else
+  bpe_model=
 fi
 
 if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
@@ -140,6 +160,7 @@ if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
       --config $train_config \
       --data_type $data_type \
       --symbol_table $dict \
+      --bpe_model $bpe_model \
       --train_data data/$train_set/data.list \
       --cv_data data/dev/data.list \
       ${checkpoint:+--checkpoint $checkpoint} \
@@ -149,6 +170,7 @@ if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
       --ddp.rank $rank \
       --ddp.dist_backend $dist_backend \
       --num_workers 1 \
+      --bbpe \
       $cmvn_opts \
       --pin_memory
   } &
@@ -190,6 +212,7 @@ if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ]; then
       --ctc_weight $ctc_weight \
       --reverse_weight $reverse_weight \
       --result_file $test_dir/text \
+      --bbpe \
       ${decoding_chunk_size:+--decoding_chunk_size $decoding_chunk_size}
     python tools/compute-wer.py --char=1 --v=1 \
       data/test/text $test_dir/text > $test_dir/wer
