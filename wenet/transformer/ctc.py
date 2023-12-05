@@ -16,6 +16,8 @@
 import torch
 import torch.nn.functional as F
 
+from wenet.utils.common import pad_list
+
 
 class CTC(torch.nn.Module):
     """CTC module"""

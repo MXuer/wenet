@@ -137,15 +137,16 @@ def Dataset(data_type,
     assert data_type in ['raw', 'shard']
     lists = read_lists(data_list_file)
     shuffle = conf.get('shuffle', True)
+    multi_task = conf.get('multi_task', False)
     dataset = DataList(lists, shuffle=shuffle, partition=partition)
     if data_type == 'shard':
         dataset = Processor(dataset, processor.url_opener)
-        dataset = Processor(dataset, processor.tar_file_and_group)
+        dataset = Processor(dataset, processor.tar_file_and_group, multi_task)
     else:
         dataset = Processor(dataset, processor.parse_raw)
 
     dataset = Processor(dataset, processor.tokenize, symbol_table, bpe_model,
-                        non_lang_syms, conf.get('split_with_space', False))
+                        non_lang_syms, conf.get('split_with_space', False), multi_task)
     filter_conf = conf.get('filter_conf', {})
     dataset = Processor(dataset, processor.filter, **filter_conf)
 

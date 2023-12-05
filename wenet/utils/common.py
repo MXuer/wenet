@@ -99,7 +99,7 @@ def add_blank(ys_pad: torch.Tensor, blank: int,
 
 
 def add_sos_eos(ys_pad: torch.Tensor, sos: int, eos: int,
-                ignore_id: int) -> Tuple[torch.Tensor, torch.Tensor]:
+                ignore_id: int, prev_lengths: torch.Tensor, reverse: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
     """Add <sos> and <eos> labels.
 
     Args:
@@ -141,7 +141,31 @@ def add_sos_eos(ys_pad: torch.Tensor, sos: int, eos: int,
     ys = [y[y != ignore_id] for y in ys_pad]  # parse padded ys
     ys_in = [torch.cat([_sos, y], dim=0) for y in ys]
     ys_out = [torch.cat([y, _eos], dim=0) for y in ys]
-    return pad_list(ys_in, eos), pad_list(ys_out, ignore_id)
+    # DUHU: Add mask for pre text
+    # 获取每一行的索引值
+    ys_out = pad_list(ys_out, ignore_id)
+    row_indices = torch.arange(ys_out.size(1)).to(ys_out.device)
+    # 创建一个掩码，将每一行的索引之前的元素标记为True
+    if reverse:
+        mask = row_indices >= prev_lengths.view(-1, 1)
+    else:
+        mask = row_indices < prev_lengths.view(-1, 1)
+    # 使用掩码将对应位置的元素置为0
+    ys_out[mask] = -1
+    if reverse:
+        # 创建一个掩码，将每行的指定索引位置标记为True
+        eos_index = []
+        for index, ele in enumerate(prev_lengths):
+            if ele == len(ys[index]):
+                eos_index.append(ele)
+            else:
+                eos_index.append(ele + 1)
+        eos_index = torch.tensor(eos_index, dtype=torch.int64)
+        mask_eos = torch.zeros_like(ys_out, dtype=torch.bool)
+        mask_eos[torch.arange(ys_out.size(0)), eos_index] = True
+        # 使用掩码将对应位置的值替换为eos
+        ys_out[mask_eos] = eos
+    return pad_list(ys_in, eos), ys_out
 
 
 def reverse_pad_list(ys_pad: torch.Tensor,

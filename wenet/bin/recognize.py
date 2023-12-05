@@ -251,6 +251,8 @@ def main():
             target = batch["target"].to(device)
             feats_lengths = batch["feats_lengths"].to(device)
             target_lengths = batch["target_lengths"].to(device)
+            prev_lengths =  batch["prev_lengths"].to(device)
+            prev_labels = [target[i, :j].tolist() for i, j in enumerate(prev_lengths)]
             results = model.decode(
                 args.modes,
                 feats,
@@ -261,7 +263,8 @@ def main():
                 ctc_weight=args.ctc_weight,
                 simulate_streaming=args.simulate_streaming,
                 reverse_weight=args.reverse_weight,
-                context_graph=context_graph)
+                context_graph=context_graph,
+                prev_labels=prev_labels)
             for i, key in enumerate(keys):
                 for mode, hyps in results.items():
                     content = [char_dict[w] for w in hyps[i].tokens]

@@ -244,11 +244,15 @@ def attention_beam_search(
     encoder_out: torch.Tensor,
     encoder_mask: torch.Tensor,
     beam_size: int = 10,
+    prev_labels: list = []
 ) -> List[DecodeResult]:
     device = encoder_out.device
     batch_size = encoder_out.shape[0]
     # Let's assume B = batch_size and N = beam_size
     # 1. Encoder
+    start = [model.sos]
+    if prev_labels:
+        start.extend(prev_labels[0])
     maxlen = encoder_out.size(1)
     encoder_dim = encoder_out.size(2)
     running_size = batch_size * beam_size
@@ -257,8 +261,10 @@ def attention_beam_search(
     encoder_mask = encoder_mask.unsqueeze(1).repeat(1, beam_size, 1, 1).view(
         running_size, 1, maxlen)  # (B*N, 1, max_len)
 
-    hyps = torch.ones([running_size, 1], dtype=torch.long,
-                      device=device).fill_(model.sos)  # (B*N, 1)
+    # hyps = torch.ones([running_size, 1], dtype=torch.long,
+    #                   device=device).fill_(model.sos)  # (B*N, 1)
+    hyps = torch.tensor(start, dtype=torch.int32).unsqueeze(0).expand(running_size, -1).to(device)
+
     scores = torch.tensor([0.0] + [-float('inf')] * (beam_size - 1),
                           dtype=torch.float)
     scores = scores.to(device).repeat([batch_size
@@ -272,7 +278,7 @@ def attention_beam_search(
             break
         # 2.1 Forward decoder step
         hyps_mask = subsequent_mask(i).unsqueeze(0).repeat(
-            running_size, 1, 1).to(device)  # (B*N, i, i)
+            running_size, 1, len(start)).to(device)  # (B*N, i, i)
         # logp: (B*N, vocab)
         logp, cache = model.decoder.forward_one_step(encoder_out, encoder_mask,
                                                      hyps, hyps_mask, cache)

@@ -73,6 +73,7 @@ class ASRModel(torch.nn.Module):
         speech_lengths: torch.Tensor,
         text: torch.Tensor,
         text_lengths: torch.Tensor,
+        prev_lengths: torch.Tensor,
     ) -> Dict[str, Optional[torch.Tensor]]:
         """Frontend + Encoder + Decoder + Calc loss
 
@@ -95,7 +96,7 @@ class ASRModel(torch.nn.Module):
         # 2a. Attention-decoder branch
         if self.ctc_weight != 1.0:
             loss_att, acc_att = self._calc_att_loss(encoder_out, encoder_mask,
-                                                    text, text_lengths)
+                                                    text, text_lengths, prev_lengths)
         else:
             loss_att = None
 
@@ -129,15 +130,18 @@ class ASRModel(torch.nn.Module):
         encoder_mask: torch.Tensor,
         ys_pad: torch.Tensor,
         ys_pad_lens: torch.Tensor,
+        prev_lengths: torch.Tensor
     ) -> Tuple[torch.Tensor, float]:
         ys_in_pad, ys_out_pad = add_sos_eos(ys_pad, self.sos, self.eos,
-                                            self.ignore_id)
+                                            self.ignore_id, prev_lengths)
         ys_in_lens = ys_pad_lens + 1
 
         # reverse the seq, used for right to left decoder
+        prev_lengths_reverse = torch.tensor([ys_pad_lens[i] - prev_lengths[i] for i in range(len(ys_pad_lens))], 
+                                            device=prev_lengths.device)
         r_ys_pad = reverse_pad_list(ys_pad, ys_pad_lens, float(self.ignore_id))
         r_ys_in_pad, r_ys_out_pad = add_sos_eos(r_ys_pad, self.sos, self.eos,
-                                                self.ignore_id)
+                                                self.ignore_id, prev_lengths_reverse, reverse=True)
         # 1. Forward decoder
         decoder_out, r_decoder_out, _ = self.decoder(encoder_out, encoder_mask,
                                                      ys_in_pad, ys_in_lens,
@@ -194,6 +198,7 @@ class ASRModel(torch.nn.Module):
         simulate_streaming: bool = False,
         reverse_weight: float = 0.0,
         context_graph: ContextGraph = None,
+        prev_labels: list = []
     ) -> Dict[str, List[DecodeResult]]:
         """ Decode input speech
 
@@ -230,7 +235,7 @@ class ASRModel(torch.nn.Module):
         results = {}
         if 'attention' in methods:
             results['attention'] = attention_beam_search(
-                self, encoder_out, encoder_mask, beam_size)
+                self, encoder_out, encoder_mask, beam_size, prev_labels)
         if 'ctc_greedy_search' in methods:
             results['ctc_greedy_search'] = ctc_greedy_search(
                 ctc_probs, encoder_lens)

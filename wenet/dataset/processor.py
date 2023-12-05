@@ -26,7 +26,7 @@ import torchaudio.compliance.kaldi as kaldi
 from torch.nn.utils.rnn import pad_sequence
 from wenet.utils.tokenize_utils import tokenize_by_bpe_model
 
-torchaudio.utils.sox_utils.set_buffer_size(16500)
+# torchaudio.utils.sox_utils.set_buffer_size(16500)
 
 AUDIO_FORMAT_SETS = set(['flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'wma'])
 
@@ -62,7 +62,7 @@ def url_opener(data):
             logging.warning('Failed to open {}'.format(url))
 
 
-def tar_file_and_group(data):
+def tar_file_and_group(data, multi_task=False):
     """ Expand a stream of open tar files into a stream of tar file contents.
         And groups the file with same prefix
 
@@ -91,8 +91,38 @@ def tar_file_and_group(data):
                 valid = True
             with stream.extractfile(tarinfo) as file_obj:
                 try:
-                    if postfix == 'txt':
-                        example['txt'] = file_obj.read().decode('utf8').strip()
+                    if postfix in ['txt', 'json']:
+                        if not multi_task:
+                            example['txt'] = file_obj.read().decode('utf8').strip()
+                        else:
+                            contents = json.load(file_obj)
+                            itn_prob = random.random() # which output type will be chose.
+                            if itn_prob >= 0.5:
+                                example['txt'] = contents['itn_text']
+                            else:
+                                example['txt'] = contents['tn_text']
+                            if contents['gender'] is not None:
+                                if contents['gender'] == "M":
+                                    gender = "<M>"
+                                elif contents['gender'] == "F":
+                                    gender = "<F>"
+                                else:
+                                    gender = "<unk>"
+                                example['txt'] = "<sot>" + gender + example['txt']
+                            else:
+                                example['txt'] = "<sot>" + "<unk>" + example['txt']
+                            prev_prob = random.random()
+                            if prev_prob >= 0.2:
+                                max_prev = 128
+                                min_prev = 48
+                                num_prev = random.choice(list(range(min_prev, max_prev+1)))
+                                if itn_prob >= 0.5:
+                                    example['txt'] = "<itn><prev>" + contents['prev_itn_text'][-num_prev:] + example['txt']
+                                else:
+                                    example['txt'] = "<prev>" + contents['prev_tn_text'][-num_prev:] + example['txt']
+                            else:
+                                if itn_prob >= 0.5:
+                                    example['txt'] = "<itn>" + example['txt']
                     elif postfix in AUDIO_FORMAT_SETS:
                         waveform, sample_rate = torchaudio.load(file_obj)
                         example['wav'] = waveform
@@ -271,6 +301,8 @@ def compute_fbank(data,
         assert 'wav' in sample
         assert 'key' in sample
         assert 'label' in sample
+        if 'prev_length' not in sample:
+            sample['prev_length'] = 0
         sample_rate = sample['sample_rate']
         waveform = sample['wav']
         waveform = waveform * (1 << 15)
@@ -282,7 +314,7 @@ def compute_fbank(data,
                           dither=dither,
                           energy_floor=0.0,
                           sample_frequency=sample_rate)
-        yield dict(key=sample['key'], label=sample['label'], feat=mat)
+        yield dict(key=sample['key'], label=sample['label'], feat=mat, prev_length=sample['prev_length'])
 
 
 def compute_mfcc(data,
@@ -326,7 +358,8 @@ def tokenize(data,
              symbol_table,
              bpe_model=None,
              non_lang_syms=None,
-             split_with_space=False):
+             split_with_space=False,
+             multi_task=False):
     """ Decode text to chars or BPE
         Inplace operation
 
@@ -353,7 +386,7 @@ def tokenize(data,
         assert 'txt' in sample
         txt = sample['txt'].strip()
         if non_lang_syms_pattern is not None:
-            parts = non_lang_syms_pattern.split(txt.upper())
+            parts = non_lang_syms_pattern.split(txt)
             parts = [w for w in parts if len(w.strip()) > 0]
         else:
             parts = [txt]
@@ -382,6 +415,11 @@ def tokenize(data,
 
         sample['tokens'] = tokens
         sample['label'] = label
+        if multi_task:
+            sot_index = sample['tokens'].index("<sot>")
+            sample['prev_length'] = sot_index
+        else:
+            sample['prev_length'] = 0
         yield sample
 
 
@@ -609,6 +647,9 @@ def padding(data):
         sorted_labels = [
             torch.tensor(sample[i]['label'], dtype=torch.int64) for i in order
         ]
+        sorted_prev_lengths = torch.tensor([
+            sample[i]['prev_length'] for i in order
+        ])
         label_lengths = torch.tensor([x.size(0) for x in sorted_labels],
                                      dtype=torch.int32)
 
@@ -618,6 +659,5 @@ def padding(data):
         padding_labels = pad_sequence(sorted_labels,
                                       batch_first=True,
                                       padding_value=-1)
-
         yield {"keys": sorted_keys, "feats": padded_feats, "target": padding_labels,
-               "feats_lengths": feats_lengths, "target_lengths": label_lengths}
+               "feats_lengths": feats_lengths, "target_lengths": label_lengths, "prev_lengths": sorted_prev_lengths}

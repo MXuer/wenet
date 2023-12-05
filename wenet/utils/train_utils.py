@@ -448,7 +448,8 @@ def batch_forward(model, batch, scaler, info_dict):
             loss_dict = model(batch["feats"].to(device),
                               batch["feats_lengths"].to(device),
                               batch["target"].to(device),
-                              batch["target_lengths"].to(device))
+                              batch["target_lengths"].to(device),
+                              batch["prev_lengths"].to(device))
     else:
         # torch_ddp
         # autocast context
@@ -458,7 +459,9 @@ def batch_forward(model, batch, scaler, info_dict):
             loss_dict = model(batch["feats"].to(device),
                               batch["feats_lengths"].to(device),
                               batch["target"].to(device),
-                              batch["target_lengths"].to(device))
+                              batch["target_lengths"].to(device),
+                              batch["prev_lengths"].to(device))
+    # print(loss_dict)
     info_dict['loss_dict'] = loss_dict
 
     return info_dict
