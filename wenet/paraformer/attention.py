@@ -80,7 +80,7 @@ class MultiHeadedAttentionSANM(nn.Module):
         mask = mask.view(n_batch, -1, 1)
         if mask_shift_chunk is not None:
             mask = mask * mask_shift_chunk
-        x = x * mask
+        # x = x * mask
         residual = x
         x = x.transpose(1, 2)
         x = self.pad_fn(x)
@@ -88,7 +88,8 @@ class MultiHeadedAttentionSANM(nn.Module):
         x = x.transpose(1, 2)
         x = residual + self.dropout(x)
         
-        return x * mask
+        # return x * mask
+        return x
         
     def forward_attention(self, 
                           value: torch.Tensor, scores: torch.Tensor, 

@@ -327,9 +327,24 @@ def __tokenize_by_bpe_model(sp, txt):
     # Example:
     #   txt   = "你好 ITS'S OKAY 的"
     #   chars = ["你", "好", " ITS'S OKAY ", "的"]
+    # NOTE: ADDED
+    txt = txt.replace("<NOSPK>", "")
+    txt = txt.replace("><", "> <")
+    txt = txt.replace(">", "> ")
+    txt = re.sub("[，。？]", lambda x:" " + x.group()[0] + " ", txt)
     chars = pattern.split(txt.upper())
+
     mix_chars = [w for w in chars if len(w.strip()) > 0]
     for ch_or_w in mix_chars:
+        # NOTE: ADDED
+        if ch_or_w.startswith("<"):
+            tokens.extend(ch_or_w.split())
+            continue
+        ch_or_w = ch_or_w.replace(" ", "")
+        if ch_or_w in ["，", "。", "？"]:
+            tokens.append(ch_or_w)
+            continue
+        # NOTE: ADDED
         # ch_or_w is a single CJK charater(i.e., "你"), do nothing.
         if pattern.fullmatch(ch_or_w) is not None:
             tokens.append(ch_or_w)
@@ -338,7 +353,7 @@ def __tokenize_by_bpe_model(sp, txt):
         else:
             for p in sp.encode_as_pieces(ch_or_w):
                 tokens.append(p)
-
+                
     return tokens
 
 

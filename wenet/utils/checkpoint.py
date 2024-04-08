@@ -38,7 +38,6 @@ def load_checkpoint(model: torch.nn.Module, path: str) -> dict:
         
     for name, params in now_state_dict.items():
         if name in checkpoint.keys():
-            print(f"load {name} from pretrained checkpoint.")
             pre_params = checkpoint[name]
             if params.size() == pre_params.size():
                 load_state_dict[name] = pre_params
