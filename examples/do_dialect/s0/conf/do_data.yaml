@@ -1,0 +1,543 @@
+task: King-ASR-426
+each:
+  King-ASR-426:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: ZangYu
+
+  King-ASR-384-14-Liaoning:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: LiaoNing
+
+  King-ASR-406:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: SiChuan
+
+  King-ASR-399:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: Yue_HK
+
+  King-ASR-384-1-Fujian:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: FuJian
+
+  King-ASR-345:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: WeiYu
+
+  King-ASR-853-1:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: MinNan
+
+  King-ASR-384-13-Henan:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: HeNan
+
+  King-ASR-384-19-Wenzhou:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: WenZhou
+
+  King-ASR-086:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: Yue_HK
+
+  King-ASR-407:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: ShangHai
+
+  King-ASR-384-3-Hunan:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: HuNan
+
+  King-ASR-742:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: ZangYu
+
+  King-ASR-384-23-Ningxia:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: NingXia
+
+  King-ASR-384-21-Liaoning:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: LiaoNing
+
+  King-ASR-384-15-Shaanxi:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: ShanXi
+
+  King-ASR-083:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: Yue_HK
+
+  King-ASR-384-11-Anhui:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: AnHui
+
+  King-ASR-443:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: Yue_HK
+
+  King-ASR-881:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: SiChuan
+
+  King-ASR-423:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: Yue_GZ
+
+  King-ASR-422:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: ZangYu
+
+  King-ASR-241:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: Yue_GZ
+
+  King-ASR-384-10-Tianjin:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: TianJin
+
+  King-ASR-446:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: Yue_HK
+
+  King-ASR-384-2:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: GuangDong
+
+  King-ASR-882:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: SiChuan
+
+  King-ASR-854:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: MinNan
+
+  King-ASR-384-22-Wu:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: WuYu
+
+  King-ASR-424:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: WeiYu
+
+  King-ASR-070:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: Yue_HK
+
+  King-ASR-854-1:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: MinNan
+
+  King-ASR-879:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: Yue_GZ
+
+  King-ASR-384-12-Shandong:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: ShanDong
+
+  King-ASR-420:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: MinNan
+
+  King-ASR-758:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: Yue_HK
+
+  King-ASR-384-18-Gansu:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: GanSu
+
+  King-ASR-427:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: MinNan
+
+  King-ASR-384-20-Hebei:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: HeBei
+
+  King-ASR-384-6-WU:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: WuYu
+
+  King-ASR-384-4-Jiangxi:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: JiangXi
+
+  King-ASR-791:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: ShangHai
+
+  King-ASR-384-7-Yunnan:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: YunNan
+
+  King-ASR-384-17-Hubei:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: HuBei
+
+  King-ASR-384-16-Shanxi:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: ShanXi
+
+  King-ASR-384-8-Guizhou:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: GuiZhou
+
+  King-ASR-880:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: Yue_GZ
+
+  King-ASR-883:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: SiChuan
+
+  King-ASR-384-9-Wu:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: WuYu
+
+  King-ASR-669:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: Yue_GZ
+
+  King-ASR-668:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: Yue_GZ
+
+  King-ASR-449:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: Yue_HK
+
+  King-ASR-421:
+    type: diag
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 0
+      lang: WeiYu
+
+  King-ASR-853:
+    type: read
+    conf:
+      data_dir: /data/duhu/dbase/FangYan
+      kformat_dir: data
+      mode: train
+      test_rate: 0.001
+      item_index: 1
+      lang: MinNan
+
+
