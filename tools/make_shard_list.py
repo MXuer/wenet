@@ -25,7 +25,7 @@ import multiprocessing
 import torch
 import torchaudio
 
-AUDIO_FORMAT_SETS = set(['flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'wma'])
+AUDIO_FORMAT_SETS = set(['flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'wma', 'WAV'])
 
 
 def write_tar_file(data_list,
@@ -145,6 +145,9 @@ if __name__ == '__main__':
                 segments_table[arr[0]] = (arr[1], float(arr[2]), float(arr[3]))
 
     data = []
+    wav_files = []
+    from collections import defaultdict
+    wav_file2segments = defaultdict(list)
     with open(args.text_file, 'r', encoding='utf8') as fin:
         for line in fin:
             arr = line.strip().split(maxsplit=1)
@@ -157,7 +160,18 @@ if __name__ == '__main__':
             else:
                 wav_key, start, end = segments_table[key]
                 wav = wav_table[wav_key]
+                wav_file2segments[wav].append((key, txt, start, end))
+    import random
+    from tqdm import tqdm
+    if not no_segments:
+        wav_file2segments_list = list(wav_file2segments.items())
+        random.shuffle(wav_file2segments_list)
+        data = []
+        for wav, segs in tqdm(wav_file2segments_list):
+            for key, txt, start, end in segs:
                 data.append((key, txt, wav, start, end))
+    else:
+        random.shuffle(data)
 
     num = args.num_utts_per_shard
     chunks = [data[i:i + num] for i in range(0, len(data), num)]

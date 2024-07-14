@@ -36,7 +36,16 @@ class BpeTokenizer(CharTokenizer):
             parts = [w for w in parts if len(w.strip()) > 0]
         else:
             parts = [line]
-        tokens = self.bpe_model.encode_as_pieces(line)
+
+        tokens = []
+        for part in parts:
+            if part in self.non_lang_syms:
+                tokens.append(part)
+            else:
+                tokens.extend(tokenize_by_bpe_model(self.bpe_model, part))
+        print(tokens)
+        import sys
+        sys.exit(1)
         return tokens
 
     def tokens2text(self, tokens: List[str]) -> str:

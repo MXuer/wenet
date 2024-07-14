@@ -27,7 +27,7 @@ def load_checkpoint(model: torch.nn.Module, path: str) -> dict:
     rank = int(os.environ.get('RANK', 0))
     logging.info('[Rank {}] Checkpoint: loading from checkpoint {}'.format(
         rank, path))
-    checkpoint = torch.load(path, map_location='cpu', mmap=True)
+    checkpoint = torch.load(path, map_location='cpu')
     missing_keys, unexpected_keys = model.load_state_dict(checkpoint,
                                                           strict=False)
     if rank == 0:

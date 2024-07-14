@@ -4,7 +4,7 @@
 import re, sys, unicodedata
 import codecs
 
-remove_tag = True
+remove_tag = False
 spacelist = [' ', '\t', '\r', '\n']
 puncts = [
     '!', ',', '?', '、', '。', '！', '，', '；', '？', '：', '「', '」', '︰', '『', '』',
