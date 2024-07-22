@@ -32,7 +32,7 @@ decoder_conf:
 
 tokenizer: bpe
 tokenizer_conf:
-  symbol_table_path: 'data/dict/dict_8000.txt'
+  symbol_table_path: '/data/duhu/new/wenet/examples/do_dialect/s0/data/dict/dict_8000.txt'
   split_with_space: false
   bpe_path: '/data/duhu/new/wenet/examples/do_dialect/s0/data/dict/MDB_bpe_8000.model'
   non_lang_syms_path: null

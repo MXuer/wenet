@@ -28,8 +28,8 @@ else
 fi
 echo "Parsed device_ids: ${device_ids[@]}"
 
-stage=6
-stop_stage=6
+stage=8
+stop_stage=8
 
 # You should change the following two parameters for multiple machine training,
 # see https://pytorch.org/docs/stable/elastic/run.html
@@ -51,18 +51,18 @@ test_sets="King-ASR-345 King-ASR-384-15-Shaanxi King-ASR-384-2 King-ASR-384-4-Ji
 # test_sets="King-ASR-345"
 train_config=conf/train_conformer_bidecoder.yaml
 dir=exp/u2pp_conformer
-checkpoint=exp/u2pp_conformer/step_17999.pt
+checkpoint=exp/u2pp_conformer/step_11999.pt
 tensorboard_dir=tensorboard
 num_workers=8
 prefetch=10
 
 cmvn_sampling_divisor=20 # 20 means 5% of the training data to estimate cmvn
 
-decode_checkpoint=
-average_checkpoint=true
-average_num=2
+decode_checkpoint=exp/u2pp_conformer/avg3_modestep_max62999_20240715_01-01-33.pt
+average_checkpoint=false
+average_num=3
 average_mode=step
-max_step=30999
+max_step=62999
 now=`date '+%Y%m%d_%H-%M-%S'`
 decode_modes="ctc_greedy_search ctc_prefix_beam_search attention attention_rescoring"
 decode_modes="attention attention_rescoring"
@@ -81,7 +81,7 @@ ctc_weight=0.5
 reverse_weight=0.0
 blank_penalty=0.0
 length_penalty=0.0
-decode_batch=16
+decode_batch=32
 
 . tools/parse_options.sh || exit 1;
 
@@ -265,4 +265,65 @@ if [ ${stage} -le 7 ] && [ ${stop_stage} -ge 7 ]; then
     --config $dir/train.yaml \
     --checkpoint $dir/avg_${average_num}.pt \
     --output_file $dir/final.zip
+fi
+
+if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
+  echo "Test model"
+  if [ ${average_checkpoint} == true ]; then
+    decode_checkpoint=$dir/avg${average_num}_mode${average_mode}_max${max_step}_${now}.pt
+    echo "do model average and final checkpoint is $decode_checkpoint"
+    python wenet/bin/average_model.py \
+        --dst_model $decode_checkpoint \
+        --src_path $dir  \
+        --num ${average_num} \
+        --mode ${average_mode} \
+        --max_step ${max_step} \
+        --val_best
+  fi
+  # Specify decoding_chunk_size if it's a unified dynamic chunk trained model
+  # -1 for full chunk
+  i=0
+  test_sets="kespeech"
+  for testset in ${test_sets}; do
+  {
+    base=$(basename $decode_checkpoint)
+    result_dir=$dir/${testset}_${base}_chunk${decoding_chunk_size}_ctc${ctc_weight}_reverse${reverse_weight}_blankpenalty${blank_penalty}_lengthpenalty${length_penalty}
+    mkdir -p ${result_dir}
+    # device_id=${device_ids[i % ${#device_ids[@]}]}
+    export CUDA_VISIBLE_DEVICES="7"
+    device_id=0
+    echo "Testing ${testset} on GPU ${device_id}"
+    # python wenet/bin/recognize.py --gpu ${device_id} \
+    #   --modes $decode_modes \
+    #   --config $dir/train.yaml \
+    #   --data_type "shard" \
+    #   --test_data data/kespeech/test/data.list \
+    #   --checkpoint $decode_checkpoint \
+    #   --beam_size 10 \
+    #   --batch_size ${decode_batch} \
+    #   --blank_penalty ${blank_penalty} \
+    #   --length_penalty ${length_penalty} \
+    #   --ctc_weight $ctc_weight \
+    #   --reverse_weight $reverse_weight \
+    #   --result_dir $result_dir \
+    #   ${decoding_chunk_size:+--decoding_chunk_size $decoding_chunk_size} &
+    # ((i++))
+    # wait
+    # if [[ $device_id -eq $((num_gpus - 1)) ]]; then
+    #   wait
+    # fi
+  }
+  done
+  wait
+  for testset in ${test_sets}; do
+  {
+    base=$(basename $decode_checkpoint)
+    result_dir=$dir/${testset}_${base}_chunk${decoding_chunk_size}_ctc${ctc_weight}_reverse${reverse_weight}_blankpenalty${blank_penalty}_lengthpenalty${length_penalty}
+    mkdir -p ${result_dir}
+    for mode in ${decode_modes}; do
+      python tools/compute-wer.py --char=1 --v=1 \
+        data/$testset/test/text $result_dir/$mode/text > $result_dir/$mode/wer
+    done
+  }
+  done
 fi
