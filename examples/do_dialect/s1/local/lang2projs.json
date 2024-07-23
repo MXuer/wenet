@@ -1,0 +1,113 @@
+{
+  "ZangYu": [
+    "King-ASR-426",
+    "King-ASR-742",
+    "King-ASR-422"
+  ],
+  "LiaoNing": [
+    "King-ASR-384-14-Liaoning",
+    "King-ASR-384-21-Liaoning"
+  ],
+  "SiChuan": [
+    "King-ASR-406",
+    "King-ASR-881",
+    "King-ASR-882",
+    "King-ASR-883"
+  ],
+  "Yue_HK": [
+    "King-ASR-399",
+    "King-ASR-086",
+    "King-ASR-083",
+    "King-ASR-443",
+    "King-ASR-446",
+    "King-ASR-070",
+    "King-ASR-758",
+    "King-ASR-449"
+  ],
+  "FuJian": [
+    "King-ASR-384-1-Fujian"
+  ],
+  "WeiYu": [
+    "King-ASR-345",
+    "King-ASR-424",
+    "King-ASR-421"
+  ],
+  "MinNan": [
+    "King-ASR-853-1",
+    "King-ASR-854",
+    "King-ASR-854-1",
+    "King-ASR-420",
+    "King-ASR-427",
+    "King-ASR-853"
+  ],
+  "HeNan": [
+    "King-ASR-384-13-Henan"
+  ],
+  "WenZhou": [
+    "King-ASR-384-19-Wenzhou"
+  ],
+  "ShangHai": [
+    "King-ASR-407",
+    "King-ASR-791"
+  ],
+  "HuNan": [
+    "King-ASR-384-3-Hunan"
+  ],
+  "NingXia": [
+    "King-ASR-384-23-Ningxia"
+  ],
+  "ShanXi": [
+    "King-ASR-384-15-Shaanxi",
+    "King-ASR-384-16-Shanxi"
+  ],
+  "AnHui": [
+    "King-ASR-384-11-Anhui"
+  ],
+  "Yue_GZ": [
+    "King-ASR-423",
+    "King-ASR-241",
+    "King-ASR-879",
+    "King-ASR-880",
+    "King-ASR-669",
+    "King-ASR-668"
+  ],
+  "TianJin": [
+    "King-ASR-384-10-Tianjin"
+  ],
+  "GuangDong": [
+    "King-ASR-384-2"
+  ],
+  "WuYu": [
+    "King-ASR-384-22-Wu",
+    "King-ASR-384-6-WU",
+    "King-ASR-384-9-Wu"
+  ],
+  "ShanDong": [
+    "King-ASR-384-12-Shandong"
+  ],
+  "GanSu": [
+    "King-ASR-384-18-Gansu"
+  ],
+  "HeBei": [
+    "King-ASR-384-20-Hebei"
+  ],
+  "JiangXi": [
+    "King-ASR-384-4-Jiangxi"
+  ],
+  "YunNan": [
+    "King-ASR-384-7-Yunnan"
+  ],
+  "HuBei": [
+    "King-ASR-384-17-Hubei"
+  ],
+  "GuiZhou": [
+    "King-ASR-384-8-Guizhou"
+  ],
+  "MANDARIN": [
+    "King-ASR-166",
+    "King-ASR-216",
+    "King-ASR-462",
+    "King-ASR-113",
+    "King-ASR-722"
+  ]
+}
