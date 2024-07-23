@@ -24,17 +24,21 @@ import datetime
 
 
 def load_checkpoint(model: torch.nn.Module, path: str) -> dict:
-    rank = int(os.environ.get('RANK', 0))
-    logging.info('[Rank {}] Checkpoint: loading from checkpoint {}'.format(
-        rank, path))
     checkpoint = torch.load(path, map_location='cpu')
-    missing_keys, unexpected_keys = model.load_state_dict(checkpoint,
-                                                          strict=False)
-    if rank == 0:
-        for key in missing_keys:
-            logging.info("missing tensor: {}".format(key))
-        for key in unexpected_keys:
-            logging.info("unexpected tensor: {}".format(key))
+    now_state_dict = model.state_dict()
+    load_state_dict = {}
+        
+    for name, params in now_state_dict.items():
+        if name in checkpoint.keys():
+            pre_params = checkpoint[name]
+            if params.size() == pre_params.size():
+                load_state_dict[name] = pre_params
+            else:
+                load_state_dict[name] = params
+        else:
+            load_state_dict[name] = params
+    model.load_state_dict(load_state_dict)
+    
     info_path = re.sub('.pt$', '.yaml', path)
     configs = {}
     if os.path.exists(info_path):

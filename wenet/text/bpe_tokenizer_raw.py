@@ -43,9 +43,6 @@ class BpeTokenizer(CharTokenizer):
                 tokens.append(part)
             else:
                 tokens.extend(tokenize_by_bpe_model(self.bpe_model, part))
-        print(tokens)
-        import sys
-        sys.exit(1)
         return tokens
 
     def tokens2text(self, tokens: List[str]) -> str:

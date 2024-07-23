@@ -52,7 +52,8 @@ def write_tar_file(data_list,
                 # read & resample
                 ts = time.time()
                 audio, sample_rate = torchaudio.load(wav)
-                audio = torchaudio.transforms.Resample(sample_rate,
+                if sample_rate != resample:
+                    audio = torchaudio.transforms.Resample(sample_rate,
                                                        resample)(audio)
                 read_time += (time.time() - ts)
             else:

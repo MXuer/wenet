@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import io
+import re
 import json
 from subprocess import PIPE, Popen
 from urllib.parse import urlparse
@@ -384,7 +385,11 @@ def tokenize(sample, tokenizer: BaseTokenizer):
             {key, wav, txt, tokens, label, sample_rate, ...}
     """
     assert 'txt' in sample
+    sample['txt'] = re.sub("<.*?>", "", sample['txt']).strip()
     tokens, label = tokenizer.tokenize(sample['txt'])
+    # print(f"TOKENS : {tokens}")
+    # print(f"LABELS : {label}")
+    # print(f"TEXTS  : {sample['txt']}")
     sample['tokens'] = tokens
     sample['label'] = label
     return sample
