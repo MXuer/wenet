@@ -230,7 +230,8 @@ def main():
                            args.test_data,
                            tokenizer,
                            test_conf,
-                           partition=False)
+                           partition=False,
+                           valid=True)
 
     test_data_loader = DataLoader(test_dataset,
                                   batch_size=None,

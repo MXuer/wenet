@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 import collections
 from collections.abc import Callable
 import copy
 import sys
+import re
 import tarfile
 import logging
 from typing import List
+from collections import defaultdict
 import torch
 from torch.utils.data import IterDataPipe, functional_datapipe
 from torch.utils.data import datapipes
@@ -28,6 +31,26 @@ from torch.utils.data.datapipes.iter.sharding import (
 from torch.utils.data.datapipes.utils.common import _check_unpickable_fn
 
 from wenet.dataset.processor import parse_url
+
+def concatenate_wav(data1, data2):
+    # 去掉第一个 wav 文件的 RIFF 头
+    header1 = data1[:44]
+    body1 = data1[44:]
+    
+    # 去掉第二个 wav 文件的 RIFF 头
+    body2 = data2[44:]
+    
+    # 拼接音频数据
+    concatenated_body = body1 + body2
+    
+    # 更新文件长度
+    data_size = len(concatenated_body) + 36
+    file_size = len(concatenated_body) + 44 - 8
+    
+    # 修改 RIFF 头中的长度字段
+    header1 = header1[:4] + file_size.to_bytes(4, byteorder='little') + header1[8:40] + data_size.to_bytes(4, byteorder='little') + header1[44:]
+    
+    return header1 + concatenated_body
 
 
 @functional_datapipe("map_ignore_error")
@@ -336,6 +359,100 @@ class TarsDataPipe(IterDataPipe):
             assert 'line' in sample
             assert 'stream' in sample
             try:
+                lang2data = defaultdict(list)
+                lang2data_final = []
+                with tarfile.open(fileobj=sample['stream'],
+                                  mode="r:*") as stream:
+                    prev_prefix = None
+                    example = {
+                        'file_name': sample['file_name'],
+                        'tar_file_name': sample['line']
+                    }
+                    valid = True
+                    for tarinfo in stream:
+                        name = tarinfo.name
+                        pos = name.rfind('.')
+                        assert pos > 0
+                        prefix, postfix = name[:pos], name[pos + 1:]
+                        if prev_prefix is not None and prefix != prev_prefix:
+                            example['key'] = prev_prefix
+                            if valid:
+                                language = re.findall("<.*?>", example['txt'])[0]
+                                example['txt'] = example['txt'].replace(language, '').strip() + f" {language}"
+                                lang2data[language].append(example)
+                                lang2data_final.append(example)
+                            example = {
+                                'file_name': sample['file_name'],
+                                'tar_file_name': sample['line']
+                            }
+                            valid = True
+                        with stream.extractfile(tarinfo) as file_obj:
+                            try:
+                                if postfix == 'txt':
+                                    example['txt'] = file_obj.read().decode(
+                                        'utf8').strip()
+                                elif postfix in AUDIO_FORMAT_SETS:
+                                    example['wav'] = file_obj.read()
+                                else:
+                                    example[postfix] = file_obj.read()
+                            except Exception as ex:
+                                valid = False
+                                logging.warning(
+                                    'error to parse {}'.format(name))
+                            prev_prefix = prefix
+                    if prev_prefix is not None:
+                        example['key'] = prev_prefix
+                        language = re.findall("<.*?>", example['txt'])[0]
+                        example['txt'] = example['txt'].replace(language, '').strip() + f" {language}"
+                        lang2data[language].append(example)
+                        lang2data_final.append(example)
+                for lang, each_data in lang2data.items():
+                    other_lang2data = copy.deepcopy(lang2data)
+                    other_lang2data.pop(lang)
+                    for other_lang, each_other_data in other_lang2data.items():
+                        each_num_merge = min(len(each_other_data), len(each_data), 10)
+                        if each_num_merge == 0:
+                            continue
+                        sample_other_data = random.sample(each_other_data, each_num_merge)
+                        sample_current_data = random.sample(each_data, each_num_merge)
+                        for index in range(each_num_merge):
+                            example = {}
+                            sample_current_each = sample_current_data[index]
+                            sample_other_each = sample_other_data[index]
+                            example['key'] = sample_current_each['key'] + "__" + sample_other_each['key']
+                            example['wav'] = concatenate_wav(sample_current_each['wav'], sample_other_each['wav'])
+                            example['txt'] = sample_current_each['txt'] + " " + sample_other_each['txt']
+                            example['file_name'] = sample['file_name']
+                            example['tar_file_name'] = sample['line']
+                            lang2data_final.append(example)
+                random.shuffle(lang2data_final)
+                for example in lang2data_final:
+                    yield example
+            except Exception as ex:
+                msg = 'In tar_file_and_group: {} when processing {}'.format(
+                    ex, sample['line'])
+                logging.warning(msg)
+            finally:
+                if 'process' in sample:
+                    sample['process'].communicate()
+                sample['stream'].close()
+
+@functional_datapipe("tar_file_and_group_valid")
+class TarsDataPipeValid(IterDataPipe):
+    """ Decode wenet's tar , yield {'txt': "...", "raw": "..."}
+    """
+
+    def __init__(self, dataset: IterDataPipe) -> None:
+        super().__init__()
+        self.dp = dataset
+
+    def __iter__(self):
+        from wenet.dataset.processor import AUDIO_FORMAT_SETS
+        for sample in self.dp:
+            assert 'file_name' in sample
+            assert 'line' in sample
+            assert 'stream' in sample
+            try:
                 with tarfile.open(fileobj=sample['stream'],
                                   mode="r:*") as stream:
                     prev_prefix = None
@@ -414,14 +531,20 @@ class WenetTarShardDatasetSource(IterDataPipe):
                  partition: bool = True,
                  shuffle: bool = False,
                  shuffle_size: int = 10000,
-                 cycle: int = 1) -> None:
+                 cycle: int = 1,
+                 valid: bool = False) -> None:
         super().__init__()
         self.dp = TextLineDataPipe(filenames)
         if shuffle:
             self.dp = self.dp.shuffle(buffer_size=shuffle_size)
         self.dp = self.dp.repeat(cycle)
-        self.dp = self.dp.shard(partition).map_ignore_error(
+        if valid:
+            self.dp = self.dp.shard(partition).map_ignore_error(
+            parse_url).tar_file_and_group_valid().prefetch(prefetch)
+        else:
+            self.dp = self.dp.shard(partition).map_ignore_error(
             parse_url).tar_file_and_group().prefetch(prefetch)
+
 
     def __iter__(self):
         for d in self.dp:

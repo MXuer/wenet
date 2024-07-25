@@ -347,7 +347,8 @@ def init_dataset_and_dataloader(args, configs, tokenizer, seed=777):
                          args.cv_data,
                          tokenizer,
                          cv_conf,
-                         partition=False)
+                         partition=False,
+                         valid=True)
 
     # NOTE(xcsong): Why we prefer persistent_workers=True ?
     #   https://discuss.pytorch.org/t/what-are-the-dis-advantages-of-persistent-workers/102110

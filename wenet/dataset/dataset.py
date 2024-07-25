@@ -27,7 +27,8 @@ def Dataset(data_type,
             data_list_file,
             tokenizer: Optional[BaseTokenizer] = None,
             conf=None,
-            partition=True):
+            partition=True,
+            valid=False):
     """ Construct dataset from arguments
 
         We have two shuffle stage in the Dataset. The first is global
@@ -62,7 +63,8 @@ def Dataset(data_type,
                                              partition=partition,
                                              shuffle=list_shuffle,
                                              shuffle_size=list_shuffle_size,
-                                             cycle=cycle)
+                                             cycle=cycle,
+                                             valid=valid)
     dataset = dataset.map_ignore_error(processor.decode_wav)
 
     singal_channel_conf = conf.get('singal_channel_conf', {})
