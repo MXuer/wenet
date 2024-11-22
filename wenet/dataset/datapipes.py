@@ -405,7 +405,7 @@ class TarsDataPipe(IterDataPipe):
                 spk2data = defaultdict(list)
                 final_data = []
                 with tarfile.open(fileobj=sample['stream'],
-                                  mode="r:*") as stream:
+                                    mode="r:*") as stream:
                     prev_prefix = None
                     example = {
                         'file_name': sample['file_name'],
@@ -420,11 +420,10 @@ class TarsDataPipe(IterDataPipe):
                         if prev_prefix is not None and prefix != prev_prefix:
                             example['key'] = prev_prefix
                             if valid:
-                                spk = re.findall("<.*?>", example['txt'])
+                                spk = re.findall("<.*?>", example['txt'])[0]
                                 example['txt'] = re.sub("<.*?>", "", example['txt'])
                                 spk2data[spk].append(example)
                                 final_data.append(example)
-                                continue
                             example = {
                                 'file_name': sample['file_name'],
                                 'tar_file_name': sample['line']
@@ -446,18 +445,16 @@ class TarsDataPipe(IterDataPipe):
                             prev_prefix = prefix
                     if prev_prefix is not None:
                         example['key'] = prev_prefix
-                        spk = re.findall("<.*?>", example['txt'])
+                        spk = re.findall("<.*?>", example['txt'])[0]
                         spk2data[spk].append(example)
                         final_data.append(example)
 
-                num_spk = [1, 1, 1, 2]
-                num_current_spk_wavs = 10
-                print(len(final_data))
+                num_spk = [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2]
+                num_current_spk_wavs = 50
                 for spk, data in spk2data.items():
                     other = deepcopy(spk2data)
                     other.pop(spk)
                     other_examples = list(itertools.chain(*other.values()))
-
                     num_sample_current_data = min(len(data), num_current_spk_wavs)
                     sample_current_data = random.sample(data, num_sample_current_data)
                     for each in sample_current_data:
@@ -478,9 +475,7 @@ class TarsDataPipe(IterDataPipe):
                         example['file_name'] = each['file_name']
                         example['tar_file_name'] = each['tar_file_name']
                         final_data.append(example)
-                        print(example)
                 random.shuffle(final_data)
-                print(len(final_data))
                 for example in final_data:
                     yield example
             except Exception as ex:
