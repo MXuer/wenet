@@ -11,6 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
+from collections import defaultdict
+from copy import deepcopy
+import random
+import itertools
 
 import collections
 from collections.abc import Callable
@@ -30,6 +35,25 @@ from torch.utils.data.datapipes.utils.common import _check_unpickable_fn
 
 from wenet.dataset.processor import parse_url
 
+def concatenate_wav(data1, data2):
+    # 去掉第一个 wav 文件的 RIFF 头
+    header1 = data1[:44]
+    body1 = data1[44:]
+    
+    # 去掉第二个 wav 文件的 RIFF 头
+    body2 = data2[44:]
+    
+    # 拼接音频数据
+    concatenated_body = body1 + body2
+    
+    # 更新文件长度
+    data_size = len(concatenated_body) + 36
+    file_size = len(concatenated_body) + 44 - 8
+    
+    # 修改 RIFF 头中的长度字段
+    header1 = header1[:4] + file_size.to_bytes(4, byteorder='little') + header1[8:40] + data_size.to_bytes(4, byteorder='little') + header1[44:]
+    
+    return header1 + concatenated_body
 
 @functional_datapipe("map_ignore_error")
 class MapperIgnoreErrorDataPipe(Mapper):
@@ -378,6 +402,8 @@ class TarsDataPipe(IterDataPipe):
             assert 'line' in sample
             assert 'stream' in sample
             try:
+                spk2data = defaultdict(list)
+                final_data = []
                 with tarfile.open(fileobj=sample['stream'],
                                   mode="r:*") as stream:
                     prev_prefix = None
@@ -394,7 +420,11 @@ class TarsDataPipe(IterDataPipe):
                         if prev_prefix is not None and prefix != prev_prefix:
                             example['key'] = prev_prefix
                             if valid:
-                                yield example
+                                spk = re.findall("<.*?>", example['txt'])
+                                example['txt'] = re.sub("<.*?>", "", example['txt'])
+                                spk2data[spk].append(example)
+                                final_data.append(example)
+                                continue
                             example = {
                                 'file_name': sample['file_name'],
                                 'tar_file_name': sample['line']
@@ -416,7 +446,43 @@ class TarsDataPipe(IterDataPipe):
                             prev_prefix = prefix
                     if prev_prefix is not None:
                         example['key'] = prev_prefix
-                        yield example
+                        spk = re.findall("<.*?>", example['txt'])
+                        spk2data[spk].append(example)
+                        final_data.append(example)
+
+                num_spk = [1, 1, 1, 2]
+                num_current_spk_wavs = 10
+                print(len(final_data))
+                for spk, data in spk2data.items():
+                    other = deepcopy(spk2data)
+                    other.pop(spk)
+                    other_examples = list(itertools.chain(*other.values()))
+
+                    num_sample_current_data = min(len(data), num_current_spk_wavs)
+                    sample_current_data = random.sample(data, num_sample_current_data)
+                    for each in sample_current_data:
+                        num_merged_wav = random.choice(num_spk)
+                        merged_examples = random.sample(other_examples, num_merged_wav)
+                        sampled_txts = [each['txt']]
+                        keys = [each['key']]
+                        wav_data = each['wav']
+                        example = {}
+                        for m_each in merged_examples:
+                            text = m_each['txt']
+                            wav_data = concatenate_wav(wav_data, m_each['wav'])
+                            sampled_txts.append(text)
+                            keys.append(m_each['key'])
+                        example['txt'] = '<scd>'.join(sampled_txts)
+                        example['wav'] = wav_data
+                        example['key'] = '__'.join(keys)
+                        example['file_name'] = each['file_name']
+                        example['tar_file_name'] = each['tar_file_name']
+                        final_data.append(example)
+                        print(example)
+                random.shuffle(final_data)
+                print(len(final_data))
+                for example in final_data:
+                    yield example
             except Exception as ex:
                 msg = 'In tar_file_and_group: {} when processing {}'.format(
                     ex, sample['line'])

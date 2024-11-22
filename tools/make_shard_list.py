@@ -160,6 +160,8 @@ if __name__ == '__main__':
                 data.append((key, txt, wav, start, end))
 
     num = args.num_utts_per_shard
+    from random import shuffle
+    shuffle(data)
     chunks = [data[i:i + num] for i in range(0, len(data), num)]
     os.makedirs(args.shards_dir, exist_ok=True)
 
