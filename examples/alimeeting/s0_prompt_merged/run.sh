@@ -147,7 +147,7 @@ if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
   # Use "nccl" if it works, otherwise use "gloo"
   # NOTE(xcsong): deepspeed fails with gloo, see
   #   https://github.com/microsoft/DeepSpeed/issues/2818
-  dist_backend="nccl"
+  dist_backend="gloo"
   cmvn_opts=
   $cmvn && cp data/${train_set}/global_cmvn $dir
   $cmvn && cmvn_opts="--cmvn ${dir}/global_cmvn"
