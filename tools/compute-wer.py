@@ -403,6 +403,7 @@ if __name__ == '__main__':
 
     with codecs.open(hyp_file, 'r', 'utf-8') as fh:
         for line in fh:
+            line = line.replace('▁', ' ')
             if tochar:
                 array = characterize(line)
             else:
@@ -414,6 +415,7 @@ if __name__ == '__main__':
 
     # compute error rate on the interaction of reference file and hyp file
     for line in open(ref_file, 'r', encoding='utf-8'):
+        line = line.replace('▁', ' ')
         if tochar:
             array = characterize(line)
         else:

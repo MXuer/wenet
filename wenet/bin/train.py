@@ -137,7 +137,7 @@ def main():
     start_epoch = configs["init_infos"].get('epoch', 0) + int("epoch_" in tag)
     # if save_interval in configs, steps mode else epoch mode
     end_epoch = configs.get('max_epoch',
-                            100) if "save_interval" not in configs else 1
+                            100) # if "save_interval" not in configs else 1
     assert start_epoch <= end_epoch
     configs.pop("init_infos", None)
     final_epoch = None
@@ -154,7 +154,7 @@ def main():
         group_join = dist.new_group(
             backend="gloo", timeout=datetime.timedelta(seconds=args.timeout))
         executor.train(model, optimizer, scheduler, train_data_loader,
-                       cv_data_loader, writer, configs, scaler, group_join)
+                       cv_data_loader, writer, configs, scaler, group_join, epoch)
         dist.destroy_process_group(group_join)
 
         dist.barrier(

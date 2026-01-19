@@ -654,8 +654,7 @@ def wenet_join(group_join, info_dict):
         #   operations are executed. If we add a communication operation that is not
         #   managed by Deepspeed in this group, it's highly likely to cause
         #   communication chaos, resulting in hard-to-troubleshoot hangs.
-        dist.monitored_barrier(group=group_join,
-                               timeout=group_join.options._timeout)
+        dist.monitored_barrier(group=group_join)
     except RuntimeError as e:
         logging.info("Detected uneven workload distribution: {}\n".format(e) +
                      "Break current worker to manually join all workers, " +
@@ -681,22 +680,22 @@ def batch_forward(model, batch, scaler, info_dict, device):
     # autocast context
     # The more details about amp can be found in
     # https://pytorch.org/docs/stable/notes/amp_examples.html
-    amp_autocast = torch.cuda.amp.autocast
+    amp_autocast = torch.amp.autocast
     if "npu" in device.__str__() and TORCH_NPU_AVAILABLE:
         amp_autocast = torch.npu.amp.autocast
     autocast = {
         "deepspeed":
-        amp_autocast(enabled=dtype is not None,
+        amp_autocast('cuda', enabled=dtype is not None,
                      dtype=dtype,
                      cache_enabled=False),
         "torch_ddp":
-        amp_autocast(enabled=scaler is not None),
+        amp_autocast('cuda', enabled=scaler is not None),
         "torch_fsdp":
-        amp_autocast(enabled=True, dtype=dtype)
+        amp_autocast('cuda', enabled=True, dtype=dtype)
         if dtype is not None else nullcontext()
     }[train_engine]
     with autocast:
-        loss_dict = model(batch, device)
+        loss_dict = model(batch, device, dtype)
 
     info_dict['loss_dict'] = loss_dict
     return info_dict

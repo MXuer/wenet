@@ -570,10 +570,10 @@ def padding(data):
         "langs": langs,
         "tasks": tasks,
     }
-    if 'speaker' in sample[0]:
-        speaker = torch.tensor([sample[i]['speaker'] for i in order],
-                               dtype=torch.int32)
-        batch['speaker'] = speaker
+    # if 'speaker' in sample[0]:
+    #     speaker = torch.tensor([sample[i]['speaker'] for i in order],
+    #                            dtype=torch.int32)
+    #     batch['speaker'] = speaker
     return batch
 
 

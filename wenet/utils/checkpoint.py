@@ -28,18 +28,39 @@ def load_checkpoint(model: torch.nn.Module, path: str) -> dict:
     logging.info('[Rank {}] Checkpoint: loading from checkpoint {}'.format(
         rank, path))
     checkpoint = torch.load(path, map_location='cpu', mmap=True)
-    missing_keys, unexpected_keys = model.load_state_dict(checkpoint,
-                                                          strict=False)
-    if rank == 0:
-        for key in missing_keys:
-            logging.info("missing tensor: {}".format(key))
-        for key in unexpected_keys:
-            logging.info("unexpected tensor: {}".format(key))
+    if 'module' in checkpoint:
+        checkpoint = checkpoint['module']
+    # missing_keys, unexpected_keys = model.load_state_dict(checkpoint,
+    #                                                       strict=False)
+    
+    now_state_dict = model.state_dict()
+    load_state_dict = {}
+        
+    for name, params in now_state_dict.items():
+        if name in checkpoint.keys():
+            pre_params = checkpoint[name]
+            if params.size() == pre_params.size():
+                load_state_dict[name] = pre_params
+            else:
+                print(f'Not loading the params....{name}')
+                load_state_dict[name] = params
+                old_size = pre_params.size()
+                if len(old_size) == 2:
+                    load_state_dict[name][:old_size[0], :] = pre_params
+                else:
+                    load_state_dict[name][:old_size[0]] = pre_params
+        else:
+            load_state_dict[name] = params
+    model.load_state_dict(load_state_dict)
+    
     info_path = re.sub('.pt$', '.yaml', path)
+    if not os.path.exists(info_path):
+        info_path = os.path.dirname(info_path) + '.yaml'
     configs = {}
     if os.path.exists(info_path):
         with open(info_path, 'r') as fin:
             configs = yaml.load(fin, Loader=yaml.FullLoader)
+    print(configs)
     return configs
 
 

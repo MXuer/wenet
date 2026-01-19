@@ -83,9 +83,10 @@ class ASRModel(torch.nn.Module):
         self,
         batch: dict,
         device: torch.device,
+        dtype = None,
     ) -> Dict[str, Optional[torch.Tensor]]:
         """Frontend + Encoder + Decoder + Calc loss"""
-        speech = batch['feats'].to(device)
+        speech = batch['feats'].to(device, dtype=dtype)
         speech_lengths = batch['feats_lengths'].to(device)
         text = batch['target'].to(device)
         text_lengths = batch['target_lengths'].to(device)

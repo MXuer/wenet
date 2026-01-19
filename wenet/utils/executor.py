@@ -39,7 +39,7 @@ class Executor:
         self.device = device
 
     def train(self, model, optimizer, scheduler, train_data_loader,
-              cv_data_loader, writer, configs, scaler, group_join):
+              cv_data_loader, writer, configs, scaler, group_join, epoch):
         ''' Train one epoch
         '''
         if self.train_step_timer is None:
@@ -101,7 +101,7 @@ class Executor:
                     model.train()
                     info_dict.update({
                         "tag":
-                        "step_{}".format(self.step),
+                        "Epoch_{}-step_{}".format(epoch, self.step),
                         "loss_dict":
                         loss_dict,
                         "save_time":

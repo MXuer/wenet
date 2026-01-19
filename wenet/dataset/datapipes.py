@@ -407,8 +407,8 @@ class TarsDataPipe(IterDataPipe):
                                         'utf8').strip()
                                 elif postfix in AUDIO_FORMAT_SETS:
                                     example['wav'] = file_obj.read()
-                                else:
-                                    example[postfix] = file_obj.read()
+                                # else:
+                                #     example[postfix] = file_obj.read()
                             except Exception as ex:
                                 valid = False
                                 logging.warning(
